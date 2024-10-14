@@ -6,6 +6,10 @@ on:
     branches:
       - main  # Trigger on push to the main branch
 
+  repository_dispatch:
+    types:
+      - webhook
+
 jobs:
   download-integration-artifact:
     runs-on: ubuntu-latest
