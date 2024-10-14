@@ -113,6 +113,10 @@ jobs:
             echo "Retrying push after pull"
             git push origin main || { echo "Push failed again"; exit 1; }
         fi
+
+    - name: Upload GitHub Pages artifact
+      uses: actions/upload-pages-artifact@v1
+    
     - name: Deploy artifact
       id: deployment
       uses: actions/deploy-pages@v1
