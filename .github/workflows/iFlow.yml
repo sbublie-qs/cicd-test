@@ -74,41 +74,50 @@ jobs:
         rm $tempfile
     - name: Commit and Push Changes to GitHub
       run: |
-        # Navigate to the folder where the integration flow content is located
-        cd $GITFolder
         
-        # Create a subfolder if it doesn't exist
-        mkdir -p integration-artefacts/$IntegrationFlowID
         
-        # Copy the new content into the subfolder
-        cp -r $GITFolder/$IntegrationFlowID/* integration-artefacts/$IntegrationFlowID/
-        
-        # Change directory to the subfolder
-        cd integration-artefacts/$IntegrationFlowID
         
         # Initialize Git if it's not already initialized
         if [ ! -d ".git" ]; then
-            git init
+          git init
         fi
         
         # Set Git user info
         git config user.email "$GIT_MAIL"
         git config user.name "$GIT_USER"
         
-        # Add remote URL if not already set
-        git remote add origin https://github.com/***/cicd-test.git || echo "Remote already exists"
+        # Create and switch to the main branch, if not already on it
+        git checkout -b main 2>/dev/null || git checkout main
         
-        # Fetch the latest changes from the remote repository to avoid conflicts
+        # Add remote URL with GITHUB_TOKEN for authentication
+        git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || echo "Remote already exists"
+        
+        # Fetch the latest changes from the remote repository
         git fetch origin
         
-        # Checkout the main branch
-        git checkout main
+        # Check if the local branch has any commits
+        if [ "$(git rev-list --count main 2>/dev/null || echo 0)" -eq 0 ]; then
+            echo "No local commits. Proceeding to add and commit."
+        else
+            echo "Rebasing on top of origin/main"
+            # Check if the remote main branch exists before rebasing
+            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                git rebase origin/main || { echo "Rebase failed, aborting"; git rebase --abort; exit 1; }
+            else
+                echo "No previous commits to rebase."
+            fi
+        fi
         
-        # Stage all changes in the subfolder
+        # Add all files
         git add .
         
-        # Commit changes
-        git commit -m "Update integration artifacts in $IntegrationFlowID" || echo "No changes to commit"
+        # Commit changes (skip if no changes)
+        git commit -m "$GITComment" || echo "No changes to commit"
         
-        # Push changes to GitHub repository, overwriting the subfolder
-        git push origin main:refs/heads/main --force
+        # Push changes to GitHub repository
+        if ! git push origin main; then
+            echo "Push failed, trying to pull changes"
+            git pull --rebase origin main || { echo "Pull failed, aborting"; exit 1; }
+            echo "Retrying push after pull"
+            git push origin main || { echo "Push failed again"; exit 1; }
+        fi
