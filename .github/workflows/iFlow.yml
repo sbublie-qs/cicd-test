@@ -10,6 +10,10 @@ jobs:
   download-integration-artifact:
     runs-on: ubuntu-latest
 
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write 
+
     env:
       IntegrationFlowID: 'CICDiFlow'  # Replace with your actual integration flow ID
       CPIHost: 'integration-test-c532obga.it-cpi024.cfapps.eu10-002.hana.ondemand.com'
@@ -21,6 +25,8 @@ jobs:
       GITComment: 'Integration Artefacts update from CICD pipeline'
       GIT_MAIL: ${{ secrets.GIT_MAIL }}
       GIT_USER: ${{ secrets.GIT_USER }}
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
     - name: Checkout code
@@ -109,7 +115,5 @@ jobs:
             git push origin main || { echo "Push failed again"; exit 1; }
         fi
     - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./
+      id: deployment
+      uses: actions/deploy-pages@v4
