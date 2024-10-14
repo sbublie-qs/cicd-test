@@ -95,12 +95,10 @@ jobs:
         # Fetch the latest changes from the remote repository
         git fetch origin
 
-        # If there are any unstaged changes, commit them or stash them
-        if ! git diff-index --quiet HEAD --; then
-            echo "You have unstaged changes. Committing them before proceeding."
-            git add .
-            git commit -m "$GITComment"
-        fi
+
+        git add .
+        git commit -m "$GITComment"
+
     
         
         # Push changes to GitHub repository
