@@ -99,27 +99,9 @@ jobs:
         if ! git diff-index --quiet HEAD --; then
             echo "You have unstaged changes. Committing them before proceeding."
             git add .
-            git commit -m "Temporary commit to clear working directory"
+            git commit -m "$GITComment"
         fi
-        
-        # Check if the local branch has any commits
-        if [ "$(git rev-list --count main 2>/dev/null || echo 0)" -eq 0 ]; then
-            echo "No local commits. Proceeding to add and commit."
-        else
-            echo "Rebasing on top of origin/main"
-            # Check if the remote main branch exists before rebasing
-            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                git rebase origin/main || { echo "Rebase failed, aborting"; git rebase --abort; exit 1; }
-            else
-                echo "No previous commits to rebase."
-            fi
-        fi
-        
-        # Add all files
-        git add .
-        
-        # Commit changes (skip if no changes)
-        git commit -m "$GITComment" || echo "No changes to commit"
+    
         
         # Push changes to GitHub repository
         if ! git push origin main; then
