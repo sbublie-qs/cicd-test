@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPMN Diagram Viewer</title>
+  <style>
+    /* Make sure the canvas takes up some space */
+    #canvas {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ccc;
+    }
+  </style>
+  <!-- BPMN Viewer library -->
+  <script src="https://unpkg.com/bpmn-js/dist/bpmn-viewer.development.js"></script>
+</head>
+<body>
+  <h1>BPMN Diagram Viewer</h1>
+
+  <!-- Canvas container for BPMN diagram -->
+  <div id="canvas"></div>
+
+  <script>
+    // BpmnJS is the BPMN viewer instance
+    const viewer = new BpmnJS({ container: '#canvas' });
+
+    // Fetch the BPMN file from the same directory
+    fetch('/CICDiFlow.iflw')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to load BPMN file');
+        }
+        return response.text();
+      })
+      .then(bpmnXML => {
+        // Import the BPMN diagram into the viewer
+        return viewer.importXML(bpmnXML);
+      })
+      .then(() => {
+        // Zoom to fit the diagram into the viewport
+        viewer.get('canvas').zoom('fit-viewport');
+      })
+      .catch(err => {
+        console.error('Error importing BPMN diagram:', err);
+      });
+  </script>
+</body>
+</html>
