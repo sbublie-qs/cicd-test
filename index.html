@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BPMN Diagram Viewer</title>
+  <title>CI/CD iFlow</title>
   <style>
     /* Make sure the canvas takes up some space */
     #canvas {
@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/bpmn-js/dist/bpmn-viewer.development.js"></script>
 </head>
 <body>
-  <h1>BPMN Diagram Viewer</h1>
+  <h1>CI/CD iFlow</h1>
 
   <!-- Canvas container for BPMN diagram -->
   <div id="canvas"></div>
@@ -26,7 +26,7 @@
     const viewer = new BpmnJS({ container: '#canvas' });
 
     // Fetch the BPMN file from the same directory
-    fetch('/cicd-test/CICDiFlow.iflw')
+    fetch('/cicd-test/integration-content/integration-artefacts/CICDiFlow/src/main/resources/scenarioflows/integrationflow/CICDiFlow.iflw')
       .then(response => {
         if (!response.ok) {
           throw new Error('Failed to load BPMN file');
