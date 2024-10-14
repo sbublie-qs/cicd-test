@@ -114,34 +114,21 @@ jobs:
             git push origin main || { echo "Push failed again"; exit 1; }
         fi
         
-    - name: Commit and Push Changes to GitHub Pages
-      run: |
-        # Initialize Git if it's not already initialized
-        if [ ! -d ".git" ]; then
-          git init
-        fi
-        
-        # Set Git user info
-        git config user.email "$GIT_MAIL"
-        git config user.name "$GIT_USER"
-        
-        # Switch to gh-pages branch (create it if it doesn't exist)
-        git checkout -b gh-pages 2>/dev/null || git checkout gh-pages
-        
-        # Add remote URL with GITHUB_TOKEN for authentication
-        git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git || echo "Remote already exists"
-        
-        # Fetch the latest changes from the remote repository
-        git fetch origin
-        
-        # Add all changes in the docs folder to Git
-        git add .
-        git commit -m "$GITComment"
-        
-        # Push changes to GitHub Pages branch
-        if ! git push origin gh-pages; then
-            echo "Push failed, trying to pull changes"
-            git pull --rebase origin gh-pages || { echo "Pull failed, aborting"; exit 1; }
-            echo "Retrying push after pull"
-            git push origin gh-pages || { echo "Push failed again"; exit 1; }
-        fi
+  deploy:
+    runs-on: ubuntu-latest
+    needs: download-integration-artifact
+    environment:
+      name: github-pages
+      url: ${{steps.deployment.outputs.page_url}}
+      
+    steps:
+    - uses: actions/download-artifact@master
+      with:
+        name: page
+        path: .
+    - uses: actions/configure-pages@v1
+    - uses: actions/upload-pages-artifact@v1
+      with:
+        path: .
+    - id: deployment
+      uses: actions/deploy-pages@main
