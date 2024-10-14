@@ -1,0 +1,114 @@
+name: Download and Update Integration Artifact
+
+on:
+  workflow_dispatch:  # Allows manual trigger via GitHub UI
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+
+jobs:
+  download-integration-artifact:
+    runs-on: ubuntu-latest
+
+    env:
+      IntegrationFlowID: 'CICDiFlow'  # Replace with your actual integration flow ID
+      CPIHost: 'integration-test-c532obga.it-cpi024.cfapps.eu10-002.hana.ondemand.com'
+      CPI_OAUTH_HOST: ${{ secrets.CPI_OAUTH_HOST }}
+      CLIENTID: ${{ secrets.CLIENTID }}
+      CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
+      GIT_BRANCH: 'main'
+      GITFolder: 'integration-content/integration-artefacts'
+      GITComment: 'Integration Artefacts update from CICD pipeline'
+      GIT_MAIL: ${{ secrets.GIT_MAIL }}
+      GIT_USER: ${{ secrets.GIT_USER }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        clean: true
+
+    - name: Set up Python 3
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+    - name: Download OAuth Token and Integration Artifact
+      run: |
+        echo "Getting OAuth token"
+        echo "OAuth URL: https://$CPI_OAUTH_HOST/oauth/token"
+        # Escape special characters in CLIENTID for use in curl command
+        escaped_client_id=$(printf %s "$CLIENTID" | sed 's/[&]/\\&/g')
+        response=$(curl -s -X POST -d "client_id=$escaped_client_id&client_secret=$CLIENTSECRET&grant_type=client_credentials" "https://$CPI_OAUTH_HOST/oauth/token")
+        token=$(echo $response | jq -r '.access_token')
+        if [ -z "$token" ]; then
+          echo "Failed to get OAuth token"
+          exit 1
+        fi
+        echo "Deleting old integration flow content"
+        rm -rf $GITFolder/$IntegrationFlowID
+        echo "Downloading integration artifact"
+        tempfile=$(uuidgen).zip
+        download_url="https://$CPIHost/api/v1/IntegrationDesigntimeArtifacts(Id='$IntegrationFlowID',Version='active')/\$value"
+        echo "Download URL: $download_url"
+        
+        http_response=$(curl -s -w "%{http_code}" -o $tempfile -H "Authorization: Bearer $token" "$download_url")
+        if [ $http_response -ne 200 ]; then
+          echo "Failed to download integration artifact, HTTP response code: $http_response"
+          exit 1
+        fi
+        echo "Checking file type"
+        file $tempfile
+        echo "Validating zip file"
+        if ! unzip -tq $tempfile; then
+          echo "Invalid zip file"
+          exit 1
+        fi
+        echo "Unzipping artifact"
+        mkdir -p $GITFolder/$IntegrationFlowID
+        unzip -q $tempfile -d $GITFolder/$IntegrationFlowID
+        rm $tempfile
+    - name: Commit and Push Changes to GitHub
+      run: |
+        # Navigate to the folder where the integration flow content is located
+        cd $GITFolder
+        
+        # Create a subfolder if it doesn't exist
+        mkdir -p integration-artefacts/$IntegrationFlowID
+        
+        # Copy the new content into the subfolder
+        cp -r $GITFolder/$IntegrationFlowID/* integration-artefacts/$IntegrationFlowID/
+        
+        # Change directory to the subfolder
+        cd integration-artefacts/$IntegrationFlowID
+        
+        # Initialize Git if it's not already initialized
+        if [ ! -d ".git" ]; then
+            git init
+        fi
+        
+        # Set Git user info
+        git config user.email "$GIT_MAIL"
+        git config user.name "$GIT_USER"
+        
+        # Add remote URL if not already set
+        git remote add origin https://github.com/***/cicd-test.git || echo "Remote already exists"
+        
+        # Fetch the latest changes from the remote repository to avoid conflicts
+        git fetch origin
+        
+        # Checkout the main branch
+        git checkout main
+        
+        # Stage all changes in the subfolder
+        git add .
+        
+        # Commit changes
+        git commit -m "Update integration artifacts in $IntegrationFlowID" || echo "No changes to commit"
+        
+        # Push changes to GitHub repository, overwriting the subfolder
+        git push origin main:refs/heads/main --force
